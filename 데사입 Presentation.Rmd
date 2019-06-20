@@ -1,0 +1,550 @@
+---
+title: "안녕하세요?"
+subtitle: "데이터 사이언스 기말 프로젝트 발표"
+
+
+author: "데이터와 데이트"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+
+---
+
+class: middle, center
+
+#Modern Classic 
+
+#vs
+
+#Pop
+
+---
+
+class: middle, center
+
+##음악 감상 반응 분석을 위한
+
+###댓글 분석을 위한!
+
+#####유튜브 댓글 크롤링!!
+
+---
+
+#크롤링
+Rselenium 패키지를 활용했습니다. 
+
+
+_사전작업 필요_ 
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(httr)
+library(rvest)
+library(RSelenium)
+library(stringr)
+```
+
+.footnote[
+참조(https://blog.naver.com/najam90/221176101881)
+]
+
+---
+#크롤링
+
+Step.1) 브라우져 열기&링크 이동
+
+
+remDr<-remoteDriver(remoteServerAddr="localhost",
+                    port=4445L,
+                    browserName="chrome")
+
+
+remDr$open()
+
+
+remDr$navigate("https://www.youtube.com/watch?time_continue=1&v=Jyf64r4KvaI")
+
+step.2) 댓글 크롤링
+
+
+url_source<-remDr$getPageSource()[[1]]
+
+
+url_item<-read_html(url_source, encoding="UTF-8") 
+
+
+mahler<- url_item %>% 
+  html_nodes("yt-formatted-string#content-text.style-scope.ytd-comment-renderer") %>% 
+  html_text(trim=TRUE)
+
+---
+#자료 유튜브 링크 - Modern
+
+```{r, echo = FALSE}
+
+DT::datatable(
+  
+  data.frame( 
+  Composer = c("Malher", "Strauss", "Debussy", "Ravel", "Schonberg", "Ives",
+               "Stravinsky", "Prokofiev","Kodaly","Vares"),
+  Title = c("피아노 4중주 가단조", "돈키호테", "달빛","볼레로","피아노 모음곡 중 지그",
+           "대답 없는 질문","페트루슈카", "피터와 늑대", "첼로 소나타 1악장",
+           "전자시대의 시"),
+  Link = c("https://www.youtube.com/watch?time_continue=1&v=Jyf64r4KvaI",
+           "https://www.youtube.com/watch?time_continue=760&v=dJNEuvfeshg",
+           "https://www.youtube.com/watch?v=U3u4pQ4WKOk",
+           "https://www.youtube.com/watch?v=dZDiaRZy0Ak",
+           "https://www.youtube.com/watch?v=bQHR_Z8XVvI",
+           "https://www.youtube.com/watch?v=KYug4df2Yf0",
+           "https://www.youtube.com/watch?time_continue=1740&v=esD90diWZds",
+           "https://www.youtube.com/watch?v=MfM7Y9Pcdzw",
+           "https://www.youtube.com/watch?time_continue=229&v=u7-fXgwSKRw",
+           "https://www.youtube.com/watch?time_continue=1&v=WQKyYmU2tPg")
+  ), options = list(pageLength = 5)
+  
+)
+
+
+```
+
+---
+
+#자료 유튜브 링크 - Pop
+
+```{r, echo = FALSE}
+
+DT::datatable(
+  
+  data.frame( 
+  Composer = c("BTS", "Lil Nas", "Taylor Swift", "Post Malone", "Jonas Brothers",
+               "Post Malone & Swae Less", "Ariana Grande", "Halsey",
+               "Sam Smith & Normani","Billie Eilsh"),
+  Title = c("작은 것들을 위한 시", "Old Town Road", "ME!","Wow","Sucker",
+           "sunflower","7 Rings", "Without Me", "Dancing with a Stranger",
+           "Bad guy"),
+  Link = c("https://www.youtube.com/watch?v=XsX3ATc3FbA",
+           "https://www.youtube.com/watch?v=w2Ov5jzm3j8",
+           "https://www.youtube.com/watch?v=FuXNumBwDOM",
+           "https://www.youtube.com/watch?v=393C3pr2ioY",
+           "https://www.youtube.com/watch?v=CnAmeh0-E-U",
+           "https://www.youtube.com/watch?v=3E78T8h5EhA",
+           "https://www.youtube.com/watch?v=QYh6mYIJG2Y",
+           "https://www.youtube.com/watch?v=ZAfAud_M_mg",
+           "https://www.youtube.com/watch?v=av5JD1dfj_c",
+           "https://www.youtube.com/watch?v=DyDfgMOUjCI")
+  ), 
+  options = list(pageLength = 5)
+  
+)
+
+
+```
+
+---
+
+#Data 불러오기
+```{r, include=FALSE }
+library(RCurl)
+```
+
+```{r, message=FALSE, warning=FALSE }
+Modern <- read_csv(
+  getURL("https://raw.githubusercontent.com/Doolhead/Final-Project-DS/master/Modern.csv")
+  , col_names=TRUE, skip_empty_rows = TRUE)
+Pop <- read_csv(
+  getURL("https://raw.githubusercontent.com/Doolhead/Final-Project-DS/master/Pop.csv")
+  , col_names=TRUE, skip_empty_rows = TRUE)
+```
+-예시
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+knitr::kable(Modern[1:3,], format = 'html')
+
+```
+
+---
+class: middle, center
+
+#첫번째 분석!
+
+
+###**WordCloud**
+를 그려보겠습니다!
+
+---
+
+#1. 전처리를 했습니다. 
+
+
+.pull-left[
+```{r}
+modern <- Modern
+
+#1. Enter 제거
+modern$Text <- str_replace_all(modern$Text, "\n", " ")
+
+#2. "" 제거
+modern$Text <- str_replace_all(modern$Text, '"', "'")
+
+#3. 인코딩 표시 제거
+modern$Text <- chartr("+", "a", modern$Text) 
+modern$Text <- modern$Text %>%
+  str_remove_all(pattern = "<\\w+>")
+
+#4. 이름 태그 제거
+modern$Text <- modern$Text %>%
+  str_remove(pattern = "@\\w+")
+
+#5. 숫자 제거
+modern$Text <- modern$Text %>%
+  str_remove_all(pattern = "\\d+")
+```
+]
+
+.pull-right[
+```{r}
+pop <- Pop
+
+#1. Enter 제거
+pop$Text <- str_replace_all(pop$Text, "\n", " ")
+
+#2. "" 제거
+pop$Text <- str_replace_all(pop$Text, '"', "'")
+
+#3. 인코딩 표시 제거
+pop$Text <- chartr("+", "a", pop$Text) 
+pop$Text <- pop$Text %>%
+  str_remove_all(pattern = "<\\w+>")
+
+#4. 이름 태그 제거
+pop$Text <- pop$Text %>%
+  str_remove(pattern = "@\\w+")
+
+#5. 숫자 제거
+pop$Text <- pop$Text %>%
+  str_remove_all(pattern = "\\d+")
+```
+]
+
+---
+
+#2. 그래프를 그렸습니다. 
+```{r, include=FALSE}
+library(wordcloud)
+library(tidytext)
+library(dplyr)
+library(RColorBrewer)
+```
+
+코드 - Modern Classic
+```{r, warning = FALSE, message=FALSE,result="hide"}
+modern_text_df <- tibble(text = modern$Text)
+m.corpus_text <- modern_text_df %>%  unnest_tokens(word, text)
+m.corpus_clean <- m.corpus_text %>%  anti_join(stop_words)
+m.count_text <- m.corpus_clean %>%  count(word, sort=TRUE)
+```
+
+
+코드- Pop
+```{r, warning = FALSE, message=FALSE,result="hide"}
+pop_text_df <- tibble(text = pop$Text)
+p.corpus_text <- pop_text_df %>%  unnest_tokens(word, text)
+p.corpus_clean <- p.corpus_text %>%  anti_join(stop_words)
+p.count_text <- p.corpus_clean %>%  count(word, sort=TRUE)
+```
+
+---
+.pull-left[
+Modern Classic
+```{r, message=FALSE}
+pal <- brewer.pal(8, "Dark2")
+wordcloud::wordcloud( words = m.count_text$word, freq = m.count_text$n,
+                      min.freq = 2, max.words = 100,
+                      random.order = FALSE, rot.per = 0.1,
+                      scale= c(4,0.7),
+                      colors = pal)
+```
+]
+.pull-right[
+Pop
+```{r, message=FALSE}
+pal <- brewer.pal(8, "Dark2")
+wordcloud::wordcloud( words = p.count_text$word, freq = p.count_text$n,
+                      min.freq = 2, max.words = 100,
+                      random.order = FALSE, rot.per = 0.1,
+                      scale= c(4,0.7),
+                      colors = pal)
+
+```
+]
+---
+class: center, middle
+
+#두번째 분석!
+
+
+###**댓글 길이**
+를 비교해보겠습니다!
+
+
+---
+##**길이, 단어, 특수문자**
+Modern classic
+```{r}
+modern$Length <- nchar(modern$Text) 
+modern$Blank <- str_count(modern$Text,pattern=" ")
+modern$WordCount <- modern$Blank-1 
+modern$AllCount <- str_count(modern$Text,pattern=".")
+modern$CharCount <- str_count(modern$Text,pattern="\\w") 
+modern$NotCharCount <- modern$AllCount-modern$CharCount 
+```
+Pop
+```{r}
+pop$Length <- nchar(pop$Text)
+pop$Blank <- str_count(pop$Text,pattern=" ")
+pop$WordCount <- pop$Blank-1
+pop$AllCount <- str_count(pop$Text,pattern=".")
+pop$CharCount <- str_count(pop$Text,pattern="\\w")
+pop$NotCharCount <- pop$AllCount-pop$CharCount
+```
+---
+#결과물들을 Data frame으로 구성해보았습니다.
+```{r, message=FALSE}
+
+modern_df <- modern[c("Length","WordCount","NotCharCount")] 
+pop_df <- pop[c("Length","WordCount","NotCharCount")]
+
+attach(modern_df)
+newdata_m <- modern_df[order(Length,WordCount,NotCharCount),]
+attach(pop_df)
+newdata_p <- pop_df[order(Length,WordCount,NotCharCount),] 
+
+m_df <- newdata_m[0:1400,] # Outlier로 판단되는 부분들 제거 
+p_df <- newdata_p[0:1400,] # Outlier로 판단되는 부분들 제거 
+
+All_df <- rbind(m_df, p_df)
+All_df$Category <- c(rep("Modern",1400), rep("Pop",1400))
+```
+---
+**댓글 길이 비교**
+```{r}
+ggplot(All_df, aes(x=Length, color=Category)) + geom_density()
+
+```
+---
+**댓글 단어 갯수 비교**
+```{r}
+ggplot(All_df, aes(x=WordCount, color=Category)) + geom_density()
+```
+---
+**댓글 특수문자 갯수 비교**
+```{r}
+ggplot(All_df, aes(x=NotCharCount, color=Category)) + geom_density()
+```
+---
+class: middle, center
+
+#세번째 분석!
+
+
+###**이모티콘 분석**
+을 해보겠습니다!
+
+---
+
+#사전준비
+
+```{r, include=FALSE}
+library(httr)
+library(rvest)
+```
+
+```{r}
+url <- "http://apps.timwhitlock.info/emoji/tables/unicode"
+emoticons <- url %>%
+  read_html(fileEncoding="UTF-8", encoding='latin1') %>%
+  html_nodes(xpath='/html/body/div[2]/div/div/table[1]') %>%
+  html_table()
+emoticons <- data.frame(emoticons[[1]]$Unicode, 
+                        emoticons[[1]]$Description, stringsAsFactors = FALSE)
+names(emoticons) <- c("Unicode", "Description")
+```
+
+.footnote[
+[1] 코드참조 : https://github.com/today-is-a-good-day/emojis/blob/master/scrapeEmoticons.R
+
+[2] 이모티콘 사전 : http://apps.timwhitlock.info/emoji/tables/unicode
+]
+---
+
+```{r}
+knitr::kable(emoticons[1:3,], format = 'html')
+```
+
+```{r}
+
+##유형별 이모티콘 테이블 모두 취합! => allemoji
+
+allemoji <- read_csv(
+  getURL("https://raw.githubusercontent.com/Doolhead/Final-Project-DS/master/emojiDict.csv")
+  , col_names=TRUE, skip_empty_rows = TRUE)
+
+```
+
+---
+
+#자료에서 이모티콘 추출!
+
+.pull-left[
+Modern Classic
+```{r}
+Modern$Text<-str_remove_all(Modern$Text, pattern="<U\\+FEFF>")
+m.which<-grep(Modern$Text, pattern="<U\\+")
+uni.m <- str_extract_all(Modern$Text[m.which], pattern="<U\\+\\w+>")
+emo.m <- data.frame(table(unlist(uni.m)))
+names(emo.m)<- c("Unicode", "Freq")
+emo.m$Unicode <- emo.m$Unicode %>%
+  str_remove_all(pattern="<|>")%>%
+  str_replace(pattern ="\\+000", replacement = "\\+")
+eMat.m <- inner_join(allemoji, emo.m, by='Unicode')
+eMat.m <- arrange(eMat.m, desc(Freq))
+```
+]
+
+.pull-right[
+Pop
+```{r}
+Pop$Text<-str_remove_all(Pop$Text, pattern="<U\\+FEFF>")
+p.which<-grep(Pop$Text, pattern="<U\\+")
+uni.p <- str_extract_all(Pop$Text[p.which], pattern="<U\\+\\w+>")
+emo.p <- data.frame(table(unlist(uni.p)))
+names(emo.p)<- c("Unicode", "Freq")
+emo.p$Unicode <- emo.p$Unicode %>%
+  str_remove_all(pattern="<|>")%>%
+  str_replace(pattern ="\\+000", replacement = "\\+")
+eMat.p<-inner_join(allemoji, emo.p, by='Unicode')
+eMat.p <- arrange(eMat.p, desc(Freq))
+```
+]
+
+---
+#Modern Classic
+```{r}
+DT::datatable(
+  eMat.m[,c("Unicode","Description","Freq")],
+  options = list(pageLength = 5)
+)
+```
+
+---
+#Pop
+```{r}
+DT::datatable(
+  eMat.p[,c("Unicode","Description","Freq")],
+  options = list(pageLength = 5)
+)
+```
+---
+
+class: center, middle
+
+#**이모티콘**
+
+#**빈도**
+
+#**그래프입니다.**
+
+---
+
+#사전준비가 필요합니다. 
+
+```{r, message=FALSE, warning=FALSE, results="hide"}
+library(tibble)
+library(emojifont)
+list.emojifonts()
+load.emojifont("OpenSansEmoji.ttf")
+load.emojifont("EmojiOne.ttf")
+library(emoGG)
+```
+
+library(devtools)
+devtools::install_github('dill/emoGG', force =TRUE )
+=>library(emoGG) 가 안될 시 해당 파일 다운 필요.
+
+---
+이모티콘 그래프 코드
+
+.pull-left[
+Modern
+```{r}
+
+eMat.m<-data.frame(eMat.m, Rank=1:length(eMat.m$Unicode))
+em.m<-str_to_lower(
+  str_remove(eMat.m$Unicode[1:10], pattern="U\\+")
+) 
+m.emoG<-ggplot(eMat.m[1:10,], aes(x=Rank, y=Freq))+
+  geom_bar(stat = 'identity',fill = 'dodgerblue4')+
+  geom_emoji(data=eMat.m[1,], emoji='1f44f', size=0.09)+
+  geom_emoji(data=eMat.m[2,], emoji='1f602', size=0.09)+
+  geom_emoji(data=eMat.m[3,], emoji='2764', size=0.09)+
+  geom_emoji(data=eMat.m[4,], emoji='1f60d', size=0.09)+
+  geom_emoji(data=eMat.m[5,], emoji='1f62d', size=0.09)+
+  geom_emoji(data=eMat.m[6,], emoji='1f3b6', size=0.09)+
+  geom_emoji(data=eMat.m[7,], emoji='1f44d', size=0.09)+
+  geom_emoji(data=eMat.m[8,], emoji='1f495', size=0.09)+
+  geom_emoji(data=eMat.m[9,], emoji='1f631', size=0.09)+
+  geom_emoji(data=eMat.m[10,], emoji='1f428', size=0.09)+
+  labs(title="Modern Classics")
+
+```
+]
+
+.pull-right[
+Pop
+```{r}
+eMat.p<-data.frame(eMat.p, Rank=1:length(eMat.p$Unicode))
+
+em.p<-str_to_lower(
+  str_remove(eMat.p$Unicode[1:10], pattern="U\\+")
+)
+p.emoG<-ggplot(eMat.p[1:10,], aes(x=Rank, y=Freq))+
+  geom_bar(stat = 'identity',fill = 'dodgerblue4')+
+  geom_emoji(data=eMat.p[1,], emoji='2764', size=0.09)+
+  geom_emoji(data=eMat.p[2,], emoji='1f60d', size=0.09)+
+  geom_emoji(data=eMat.p[3,], emoji='1f602', size=0.09)+
+  geom_emoji(data=eMat.p[4,], emoji='1f525', size=0.09)+
+  geom_emoji(data=eMat.p[5,], emoji='1f618', size=0.09)+
+  geom_emoji(data=eMat.p[6,], emoji='1f495', size=0.09)+
+  geom_emoji(data=eMat.p[7,], emoji='1f49c', size=0.09)+
+  geom_emoji(data=eMat.p[8,], emoji='1f62d', size=0.09)+
+  geom_emoji(data=eMat.p[9,], emoji='1f33b', size=0.09)+
+  geom_emoji(data=eMat.p[10,], emoji='1f44d', size=0.09)+
+  labs(title="Pop")
+
+```
+]
+---
+.pull-center[
+```{r, message=FALSE, fig.height=4.5, out.width='100%'}
+library(gridExtra)
+grid.arrange(m.emoG, p.emoG, nrow=1)
+```
+]
+
+---
+#Insight
+
+-유튜브 조회수가 중요해지고 있는 요즘, 마케팅 전략인 유사성 효과를 이 분석과 연계시켜 유튜브 마케팅에 쓰면 조회수에 긍정적인 영향을 미칠거라고 예상.
+
+-Similarity Effect 와 연관시켜 생각 가능!
+참조 : https://www.sciencedirect.com/topics/computer-science/similarity-effect
+
+---
+class: middle, center
+
+#**감사합니다.**
+
